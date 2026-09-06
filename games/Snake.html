@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      background: black;
+      border: 4px solid red;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="240"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+	let gameSpeed = 200; // Sets game speed to refresh rate
+	
+	let snakePos = [{x: 20, y: 20}];
+	let snakeSize = 20; // Width and height of the snake
+	let snakeVelocity = [{x: 20, y: 0}];
+	let snakePrevVelocity = {x: 20, y: 0};
+	
+	let foodPos = [];
+	let foodSize = 20;
+	
+	const playButton = {x: 140, y: 100, width: 120, height: 40};
+	const restartButton = {x: 140, y: 140, width: 120, height: 40};
+	
+	let gameState = 'menu';
+	let exitMessage = "Game Over!";
+	let running = true;
+	
+	document.addEventListener('keydown', function(event) {
+	    switch (event.key) {
+			case 'ArrowUp':
+				if (snakePrevVelocity.y !== 20) {
+					snakeVelocity[0].y = -20;
+					snakeVelocity[0].x = 0;
+				}
+				break;
+			case 'ArrowDown':
+				if (snakePrevVelocity.y !== -20) {
+					snakeVelocity[0].y = 20;
+					snakeVelocity[0].x = 0;
+				}
+				break;
+			case 'ArrowLeft':
+				if (snakePrevVelocity.x !== 20) {
+					snakeVelocity[0].y = 0;
+					snakeVelocity[0].x = -20;
+				}
+				break;
+			case 'ArrowRight':
+				if (snakePrevVelocity.x !== -20) {
+					snakeVelocity[0].y = 0;
+					snakeVelocity[0].x = 20;
+					}
+				break;
+			case 'Escape':
+				gameState = 'gameover';
+				running = false;
+			default:
+				break;
+	    }
+	});
+	
+	document.addEventListener('click', (event) => {
+		const rect = canvas.getBoundingClientRect();
+		const clickX = event.clientX - rect.left;
+		const clickY = event.clientY - rect.top;
+
+		if (gameState === 'menu') {
+			if (clickX >= playButton.x && clickX <= playButton.x + playButton.width &&
+				clickY >= playButton.y && clickY <= playButton.y + playButton.height) {
+				resetGame();
+			}
+		} else if (gameState === 'gameover') {
+			if (clickX >= restartButton.x && clickX <= restartButton.x + restartButton.width &&
+				clickY >= restartButton.y && clickY <= restartButton.y + restartButton.height) {
+				resetGame();
+			}
+		}
+	});
+	
+	// --- Create food ---
+	function spawnFood() {
+		let emptySpaces = [];
+		for (let i = 0; i < canvas.width; i+=20) {
+			for (let j = 0; j < canvas.height; j+=20) {
+				if (!snakePos.some(pos => pos.x === i && pos.y === j)) {
+					if (!foodPos.some(pos => pos.x === i && pos.y === j)) {
+						emptySpaces.push({x: i, y: j});
+					}
+				}
+			}
+		}
+		if (foodPos.length === 0 && emptySpaces.length === 0) { // All food eaten, no room left anywhere
+			gameState = 'gameover';
+			exitMessage = "You Win!";
+			running = false;
+			return;
+		}
+		if (foodPos.length < 3 && emptySpaces.length > 0) {
+			foodPos.push(emptySpaces[Math.floor(Math.random() * (emptySpaces.length))]);
+		}
+	}
+
+    // --- Draw function: renders the current game state onto the canvas ---
+    function draw() {
+		switch (gameState) {
+			case 'menu':
+				ctx.fillStyle = '#02066F'; // Dark blue background
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = 'white'; // Title text color
+				ctx.font = '24px sans-serif';
+				ctx.textAlign = 'center';
+				ctx.fillText('Snake', canvas.width / 2, 60); // Draw title
+				ctx.fillStyle = 'green'; // Button background
+				ctx.fillRect(playButton.x, playButton.y, playButton.width, playButton.height);
+				ctx.fillStyle = 'white'; // Button label color
+				ctx.font = '18px sans-serif';
+				ctx.fillText('Play', canvas.width / 2, playButton.y + 26);
+				break;
+			case 'playing':
+				ctx.fillStyle = 'black';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				snakePos.forEach(pos => {
+					ctx.fillStyle = 'red';
+					ctx.fillRect(pos.x, pos.y, snakeSize, snakeSize);
+				})
+				foodPos.forEach(pos => {
+					ctx.fillStyle = 'green';
+					ctx.fillRect(pos.x, pos.y, foodSize, foodSize);
+				})
+				break;
+			case 'gameover':
+				ctx.fillStyle = 'red';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = 'white';
+				ctx.font = '20px sans-serif';
+				ctx.textAlign = 'center';
+				ctx.fillText(exitMessage, canvas.width / 2, 70);
+				ctx.fillStyle = 'green';
+				ctx.fillRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
+				ctx.fillStyle = 'white';
+				ctx.font = '18px sans-serif';
+				ctx.fillText('Restart', canvas.width / 2, restartButton.y + 26);
+				break;
+		}
+    }
+	
+	function update() {
+		snakePrevVelocity.x = snakeVelocity[0].x;
+		snakePrevVelocity.y = snakeVelocity[0].y;
+		let nextX = snakePos[0].x + snakeVelocity[0].x;
+		let nextY = snakePos[0].y + snakeVelocity[0].y;
+		// Check collision with border
+		if (nextX >= canvas.width || nextX < 0 || nextY >= canvas.height || nextY < 0) {
+			gameState = 'gameover';
+			exitMessage = "Collided! Game Over";
+			running = false;
+			return;
+		}
+		// Check collision with tail
+		let collided = snakePos.slice(1).some(pos => pos.x === nextX && pos.y === nextY);
+		if (collided) {
+			gameState = 'gameover';
+			exitMessage = "Collided! Game Over";
+			running = false;
+			return;
+		}
+		let oldTailX = snakePos[snakePos.length - 1].x;
+		let oldTailY = snakePos[snakePos.length - 1].y;
+		// Update tail positions
+		snakePos.forEach(pos => {
+			[pos.x, nextX] = [nextX, pos.x];
+			[pos.y, nextY] = [nextY, pos.y];
+		})
+		
+		let index = foodPos.findIndex(pos => pos.x === snakePos[0].x && pos.y === snakePos[0].y);
+		if (index !== -1) {
+			foodPos.splice(index, 1);
+			snakePos.push({x: oldTailX, y: oldTailY});
+		}
+	}
+	
+	function resetGame() {
+		clearInterval(messageInterval);
+		snakePos = [{x: 20, y: 20}]; // Reset snake to starting position/length
+		snakeVelocity = [{x: 20, y: 0}]; // Reset direction
+		snakePrevVelocity = {x: 20, y: 0}; // Reset tracked previous direction too
+		foodPos = []; // Reset food
+		running = true; // Allow the loop to run logic again
+		gameState = 'playing'; // Jump straight into play
+		messageInterval = setInterval(gameLoop, gameSpeed); // Restart the loop, since it was cleared on game over
+	}
+
+    // --- Game loop: called once per second, this is where game logic/drawing will go ---
+    function gameLoop() {
+		if (gameState === 'playing') {
+			if (running) {
+				update();
+				if (running) {
+					spawnFood();
+				}
+			} else {
+				console.log(exitMessage);
+				clearInterval(messageInterval);
+			}
+		}
+		draw();
+    }
+
+    let messageInterval = setInterval(gameLoop, gameSpeed);
+  </script>
+</body>
+</html>
+
+<!--
+Ideas for Snake:
+ 1) Add enemies
+	- Said enemies will spawn on one side (NESW) and then travel to the other side.
+	- If they collided with food, they consumed it to no bonus of the snake.
+	- If they collided with the snake tail, everything 'under' that point and including it, will
+		be consumed and lost. This doesn't end the game.
+ 2) Points
+	- Food is worth 1 point.
+	- Points earned when food is multiplied is calculated at (F * L), where F-value of food.
+		and L-length of snake. So the longer the snake the more points you score per food.
+	This incentivises the player to grow out their tail
+ 3) Leaderboard
+	- Keep track of max length, Points, and time alive
+-->
