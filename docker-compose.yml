@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres # Use the official Postgres image, same as before
+    container_name: snake-db
+    environment:
+      POSTGRES_PASSWORD: heineken_post1994 # Sets the same password you configured
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql # Persists data even if the container is removed
+
+  backend:
+    build: ./backend # Build using the Dockerfile inside the backend folder
+    container_name: snake-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://postgres:heineken_post1994@db:5432/postgres # "db" is the service name above, resolved automatically
+    depends_on:
+      - db # Ensures Postgres starts before the backend tries to connect
+
+volumes:
+  db-data: # Declares the named volume referenced above

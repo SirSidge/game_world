@@ -31,7 +31,7 @@
 </head>
 <div id="gameContainer"> <!-- Wraps the score display and the canvas together -->
     <div id="scoreDisplay">Score: 0</div> <!-- Plain text element, sits above the canvas -->
-	<canvas id="gameCanvas" width="400" height="240"></canvas>
+	<canvas id="gameCanvas" width="600" height="480"></canvas>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
@@ -47,13 +47,40 @@
 	let foodSize = 20;
 
 	let score = 0; // Player's current score
+	let playerName = null;
+	let top10 = [];
+	let playerRank = null;
 	
-	const playButton = {x: 140, y: 100, width: 120, height: 40};
-	const restartButton = {x: 140, y: 140, width: 120, height: 40};
+	const playButton = {x: (canvas.width/2-60), y: 100, width: 120, height: 40};
+	const restartButton = {x: (canvas.width/2-60), y: 400, width: 120, height: 40};
 	
 	let gameState = 'menu';
 	let exitMessage = "Game Over!";
 	let running = true;
+
+	function submitScore() {
+		fetch('http://localhost:8080/submit-score', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name: playerName, score: score })
+		})
+			.then(response => response.json()) // Parse the response as JSON instead of plain text now
+			.then(data => {
+				top10 = data.top10; // Store the leaderboard
+				playerRank = data.rank; // Store this run's rank
+				console.log(data)
+			})
+			.catch(error => console.error('Submit failed:', error));
+	}
+
+	function ensurePlayerName() {
+		if (playerName === null) { // Only ask if we haven't already this session
+			playerName = prompt('Enter your name:', 'Player'); // Shows a native popup with a text field
+			if (!playerName || playerName.trim() === '') { // Handles Cancel, or an empty/blank name
+				playerName = 'Player'; // Fallback so the rest of the code never deals with an empty name
+			}
+		}
+	}
 	
 	document.addEventListener('keydown', function(event) {
 	    switch (event.key) {
@@ -128,6 +155,7 @@
 			gameState = 'gameover';
 			exitMessage = "You Win!";
 			running = false;
+			submitScore();
 			return;
 		}
 		if (foodPos.length < 3 && emptySpaces.length > 0) {
@@ -167,9 +195,19 @@
 				ctx.fillStyle = 'red';
 				ctx.fillRect(0, 0, canvas.width, canvas.height);
 				ctx.fillStyle = 'white';
-				ctx.font = '20px sans-serif';
+				ctx.font = '18px sans-serif';
 				ctx.textAlign = 'center';
-				ctx.fillText(exitMessage, canvas.width / 2, 70);
+				ctx.fillText(exitMessage, canvas.width / 2, 20);
+
+				ctx.font = '14px sans-serif';
+				top10.forEach((entry, index) => {
+					ctx.fillText((index + 1) + '. ' + entry.name + ' - ' + entry.score, canvas.width / 2, 45 + index * 16);
+				});
+
+				if (playerRank !== null) { // Now shown every time, regardless of top 10 placement
+					ctx.fillText("You're rank: " + playerRank, canvas.width / 2, 45 + top10.length * 16 + 10);
+				}
+
 				ctx.fillStyle = 'green';
 				ctx.fillRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
 				ctx.fillStyle = 'white';
@@ -189,6 +227,7 @@
 			gameState = 'gameover';
 			exitMessage = "Collided! Game Over";
 			running = false;
+			submitScore();
 			return;
 		}
 		// Check collision with tail
@@ -197,13 +236,14 @@
 			gameState = 'gameover';
 			exitMessage = "Collided! Game Over";
 			running = false;
+			submitScore();
 			return;
 		}
 		let oldTailX = snakePos[snakePos.length - 1].x;
 		let oldTailY = snakePos[snakePos.length - 1].y;
 		// Increment score
 		score += snakePos.length; // Add points equal to length of current snake
-		document.getElementById('scoreDisplay').innerText = 'Score: ' + score; // Update on-screen text
+		document.getElementById('scoreDisplay').innerText = playerName + " " +'Score: ' + score; // Update on-screen text
 
 		// Update tail positions
 		snakePos.forEach(pos => {
@@ -219,9 +259,10 @@
 	}
 	
 	function resetGame() {
+		ensurePlayerName(); // Ask for a name only the first time this session
 		clearInterval(messageInterval);
 		score = 0;
-		document.getElementById('scoreDisplay').innerText = 'Score: 0';
+		document.getElementById('scoreDisplay').innerText = playerName + " " + 'Score: 0';
 		snakePos = [{x: 20, y: 20}]; // Reset snake to starting position/length
 		snakeVelocity = [{x: 20, y: 0}]; // Reset direction
 		snakePrevVelocity = {x: 20, y: 0}; // Reset tracked previous direction too
@@ -266,4 +307,8 @@ Ideas for Snake:
 	This incentivises the player to grow out their tail
  3) Leaderboard
 	- Keep track of max length, Points, and time alive
+ 4) Name
+	- Prevent empty inputs for name
+	- Add name to a settings window.
+	- Max 4 letters
 -->

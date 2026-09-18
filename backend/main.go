@@ -5,12 +5,24 @@ import (
     "fmt"
     "log"
     "net/http"
+    "os"
     "github.com/jackc/pgx/v5/pgxpool"
     "encoding/json"
+    "github.com/joho/godotenv"
 )
 
 func main() {
-    conn, err := pgxpool.New(context.Background(), "postgres://postgres:yourpassword@localhost:5432/postgres")
+    err := godotenv.Load() // Reads .env into environment variables, if the file exists
+    if err != nil {
+        log.Println("No .env file found, relying on system environment variables") // Not fatal — Render won't have a .env file, it sets env vars directly
+    }
+
+    dbURL := os.Getenv("DATABASE_URL") // Read the connection string from the environment instead of hardcoding it
+    if dbURL == "" {
+        log.Fatal("DATABASE_URL environment variable is not set")
+    }
+
+    conn, err := pgxpool.New(context.Background(), dbURL)
     if err != nil {
         log.Fatal("Unable to connect to database:", err)
     }
@@ -32,11 +44,28 @@ func main() {
         Score int    `json:"score"` // Matches the "score" field
     }
 
+    type ScoreEntry struct {
+        Name  string `json:"name"`
+        Score int    `json:"score"`
+    }
+
+    type SubmitResponse struct {
+        Top10 []ScoreEntry `json:"top10"`
+        Rank  int          `json:"rank"`
+    }
+
     http.HandleFunc("/submit-score", func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Access-Control-Allow-Origin", "*") // Same CORS permission your other endpoint needs
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "POST") // Tell the browser which methods are allowed
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+        if r.Method == "OPTIONS" { // This is the preflight check itself — just approve it and stop here
+            w.WriteHeader(http.StatusOK)
+            return
+        }
 
         var submission ScoreSubmission
-        err := json.NewDecoder(r.Body).Decode(&submission) // Read the request body and fill in the struct above
+        err := json.NewDecoder(r.Body).Decode(&submission)
         if err != nil {
             http.Error(w, "Invalid request body", 400)
             return
@@ -44,13 +73,38 @@ func main() {
 
         _, err = conn.Exec(context.Background(),
             "INSERT INTO scores (player_name, score) VALUES ($1, $2)", submission.Name, submission.Score)
-        // Exec runs SQL that doesn't return rows (INSERT/UPDATE/DELETE), unlike Query
         if err != nil {
             http.Error(w, "Insert failed", 500)
             return
         }
 
-        fmt.Fprint(w, "Score saved")
+        // Get top 10 scores
+        rows, err := conn.Query(context.Background(), "SELECT player_name, score FROM scores ORDER BY score DESC LIMIT 10")
+        if err != nil {
+            http.Error(w, "Query failed", 500)
+            return
+        }
+        defer rows.Close()
+
+        var top10 []ScoreEntry
+        for rows.Next() {
+            var entry ScoreEntry
+            rows.Scan(&entry.Name, &entry.Score)
+            top10 = append(top10, entry) // Build up the list one row at a time
+        }
+
+        // Work out this score's rank: how many existing scores beat it, plus 1
+        var rank int
+        err = conn.QueryRow(context.Background(),
+            "SELECT COUNT(*) + 1 FROM scores WHERE score > $1", submission.Score).Scan(&rank)
+        if err != nil {
+            http.Error(w, "Rank query failed", 500)
+            return
+        }
+
+        response := SubmitResponse{Top10: top10, Rank: rank}
+        w.Header().Set("Content-Type", "application/json") // Tell the browser we're sending JSON back, not plain text
+        json.NewEncoder(w).Encode(response) // Convert the Go struct into JSON and write it to the response
     })
 
     http.HandleFunc("/leaderboard", func(w http.ResponseWriter, r *http.Request) {
