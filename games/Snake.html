@@ -59,7 +59,7 @@
 	let running = true;
 
 	function submitScore() {
-		fetch('http://localhost:8080/submit-score', {
+		fetch('https://game-world-backend.onrender.com/submit-score', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ name: playerName, score: score })
@@ -134,7 +134,7 @@
 		}
 	});
 
-	fetch('http://localhost:8080/') // Send a request to your Go server's address
+	fetch('https://game-world-backend.onrender.com/') // Send a request to your Go server's address
 		.then(response => response.text()) // Once a response arrives, read its body as plain text
 		.then(data => console.log(data)) // Once the text is extracted, print it to the console
 		.catch(error => console.error('Request failed:', error)); // If anything goes wrong (server down, CORS, etc), log it instead of crashing
