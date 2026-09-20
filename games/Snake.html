@@ -52,7 +52,9 @@
 	let playerRank = null;
 	
 	const playButton = {x: (canvas.width/2-60), y: 100, width: 120, height: 40};
-	const restartButton = {x: (canvas.width/2-60), y: 400, width: 120, height: 40};
+	const menuButton = {x: (canvas.width/2-60), y: 400, width: 120, height: 40};
+	const leaderboardButton = {x: (canvas.width/2-60), y: 180, width: 120, height: 40};
+	const backButton = {x: (canvas.width/2-60), y: 380, width: 120, height: 40};
 	
 	let gameState = 'menu';
 	let exitMessage = "Game Over!";
@@ -125,11 +127,20 @@
 			if (clickX >= playButton.x && clickX <= playButton.x + playButton.width &&
 				clickY >= playButton.y && clickY <= playButton.y + playButton.height) {
 				resetGame();
+			} else if (clickX >= leaderboardButton.x && clickX <= leaderboardButton.x + leaderboardButton.width &&
+				clickY >= leaderboardButton.y && clickY <= leaderboardButton.y + leaderboardButton.height) {
+					fetchLeaderboard();
+					gameState = 'leaderboard';
 			}
 		} else if (gameState === 'gameover') {
-			if (clickX >= restartButton.x && clickX <= restartButton.x + restartButton.width &&
-				clickY >= restartButton.y && clickY <= restartButton.y + restartButton.height) {
-				resetGame();
+			if (clickX >= menuButton.x && clickX <= menuButton.x + menuButton.width &&
+				clickY >= menuButton.y && clickY <= menuButton.y + menuButton.height) {
+				gameState = 'menu';
+			}
+		} else if (gameState === 'leaderboard') {
+			if (clickX >= backButton.x && clickX <= backButton.x + backButton.width &&
+				clickY >= backButton.y && clickY <= backButton.y + backButton.height) {
+					gameState = 'menu'
 			}
 		}
 	});
@@ -138,6 +149,21 @@
 		.then(response => response.text()) // Once a response arrives, read its body as plain text
 		.then(data => console.log(data)) // Once the text is extracted, print it to the console
 		.catch(error => console.error('Request failed:', error)); // If anything goes wrong (server down, CORS, etc), log it instead of crashing
+
+	function fetchLeaderboard() {
+		fetch('https://game-world-backend.onrender.com/leaderboard')
+			.then(response => response.text()) // This endpoint returns plain text, not JSON
+			.then(data => {
+				top10 = data.trim().split('\n') // Split into individual "name: score" lines
+					.filter(line => line !== '') // Guard against a blank response (empty table)
+					.map(line => {
+						const [name, scoreStr] = line.split(': '); // Split each line on the colon
+						return { name: name, score: parseInt(scoreStr) }; // Rebuild the same {name, score} shape draw() expects
+					})
+					.slice(0, 10); // Keep only the top 10, since this endpoint returns everyone
+			})
+			.catch(error => console.error('Fetch failed:', error));
+	}
 	
 	// --- Create food ---
 	function spawnFood() {
@@ -175,11 +201,38 @@
 				ctx.font = '24px sans-serif';
 				ctx.textAlign = 'center';
 				ctx.fillText('Snake', canvas.width / 2, 60); // Draw title
+				// -- Play Button -- //
 				ctx.fillStyle = 'green'; // Button background
 				ctx.fillRect(playButton.x, playButton.y, playButton.width, playButton.height);
 				ctx.fillStyle = 'white'; // Button label color
 				ctx.font = '18px sans-serif';
 				ctx.fillText('Play', canvas.width / 2, playButton.y + 26);
+				// -- Leaderboard Button -- //
+				ctx.fillStyle = 'green'; // Leaderboard Button background
+				ctx.fillRect(leaderboardButton.x, leaderboardButton.y, leaderboardButton.width, leaderboardButton.height);
+				ctx.fillStyle = 'white'; // Leaderboard Button label color
+				ctx.font = '18px sans-serif';
+				ctx.fillText('Leaderboard', canvas.width / 2, leaderboardButton.y + 26);
+				break;
+			case 'leaderboard':
+				ctx.fillStyle = '#02066F';
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = 'white';
+				ctx.font = '18px sans-serif';
+				ctx.textAlign = 'center';
+				ctx.fillText("Leaderboard", canvas.width / 2, 20);
+				ctx.fillText('Your score: ' + score, canvas.width / 2, 38);
+				ctx.font = '14px sans-serif';
+				// -- Show leaderboard -- //
+				top10.forEach((entry, index) => {
+					ctx.fillText((index + 1) + '. ' + entry.name + ' - ' + entry.score, canvas.width / 2, 60 + index * 16);
+				});
+				// -- Play Button -- //
+				ctx.fillStyle = 'green';
+				ctx.fillRect(backButton.x, backButton.y, backButton.width, backButton.height);
+				ctx.fillStyle = 'white';
+				ctx.font = '18px sans-serif';
+				ctx.fillText('Back', canvas.width / 2, backButton.y + 26);
 				break;
 			case 'playing':
 				ctx.fillStyle = 'black';
@@ -211,12 +264,12 @@
 					});
 					ctx.fillText('Your rank: ' + playerRank, canvas.width / 2, 60 + top10.length * 16 + 10);
 				}
-
+				// -- Restart Button -- //
 				ctx.fillStyle = 'green';
-				ctx.fillRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
+				ctx.fillRect(menuButton.x, menuButton.y, menuButton.width, menuButton.height);
 				ctx.fillStyle = 'white';
 				ctx.font = '18px sans-serif';
-				ctx.fillText('Restart', canvas.width / 2, restartButton.y + 26);
+				ctx.fillText('Menu', canvas.width / 2, menuButton.y + 26);
 				break;
 		}
     }
