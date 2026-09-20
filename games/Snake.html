@@ -155,6 +155,8 @@
 			gameState = 'gameover';
 			exitMessage = "You Win!";
 			running = false;
+			top10 = [];
+			playerRank = null;
 			submitScore();
 			return;
 		}
@@ -198,14 +200,16 @@
 				ctx.font = '18px sans-serif';
 				ctx.textAlign = 'center';
 				ctx.fillText(exitMessage, canvas.width / 2, 20);
-
+				ctx.fillText('Your score: ' + score, canvas.width / 2, 38);
 				ctx.font = '14px sans-serif';
-				top10.forEach((entry, index) => {
-					ctx.fillText((index + 1) + '. ' + entry.name + ' - ' + entry.score, canvas.width / 2, 45 + index * 16);
-				});
 
-				if (playerRank !== null) { // Now shown every time, regardless of top 10 placement
-					ctx.fillText("You're rank: " + playerRank, canvas.width / 2, 45 + top10.length * 16 + 10);
+				if (playerRank === null) {
+					ctx.fillText('Calculating rank...', canvas.width / 2, 60); // Shown while the request is in flight
+				} else {
+					top10.forEach((entry, index) => {
+						ctx.fillText((index + 1) + '. ' + entry.name + ' - ' + entry.score, canvas.width / 2, 60 + index * 16);
+					});
+					ctx.fillText('Your rank: ' + playerRank, canvas.width / 2, 60 + top10.length * 16 + 10);
 				}
 
 				ctx.fillStyle = 'green';
@@ -227,6 +231,8 @@
 			gameState = 'gameover';
 			exitMessage = "Collided! Game Over";
 			running = false;
+			top10 = [];
+			playerRank = null;
 			submitScore();
 			return;
 		}
@@ -236,6 +242,8 @@
 			gameState = 'gameover';
 			exitMessage = "Collided! Game Over";
 			running = false;
+			top10 = [];
+			playerRank = null;
 			submitScore();
 			return;
 		}

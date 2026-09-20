@@ -6,6 +6,7 @@ import (
     "log"
     "net/http"
     "os"
+    "strings"
     "github.com/jackc/pgx/v5/pgxpool"
     "encoding/json"
     "github.com/joho/godotenv"
@@ -56,13 +57,33 @@ func main() {
 
     http.HandleFunc("/submit-score", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Access-Control-Allow-Origin", "*")
-        w.Header().Set("Access-Control-Allow-Methods", "POST") // Tell the browser which methods are allowed
+        w.Header().Set("Access-Control-Allow-Methods", "POST")
         w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
         if r.Method == "OPTIONS" { // This is the preflight check itself — just approve it and stop here
             w.WriteHeader(http.StatusOK)
             return
         }
+
+        // --- Validation ---
+        submission.Name = strings.TrimSpace(submission.Name) // Remove leading/trailing whitespace
+        if submission.Name == "" {
+            http.Error(w, "Name cannot be empty", 400)
+            return
+        }
+        if len(submission.Name) > 10 {
+            http.Error(w, "Name too long (max 10 characters)", 400)
+            return
+        }
+        if submission.Score < 0 {
+            http.Error(w, "Score cannot be negative", 400)
+            return
+        }
+        if submission.Score > 100000000 { // Generously above anything realistically achievable
+            http.Error(w, "Score exceeds maximum allowed value", 400)
+            return
+        }
+        // --- End validation ---
 
         var submission ScoreSubmission
         err := json.NewDecoder(r.Body).Decode(&submission)
