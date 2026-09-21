@@ -224,9 +224,13 @@
 				ctx.fillText('Your score: ' + score, canvas.width / 2, 38);
 				ctx.font = '14px sans-serif';
 				// -- Show leaderboard -- //
-				top10.forEach((entry, index) => {
-					ctx.fillText((index + 1) + '. ' + entry.name + ' - ' + entry.score, canvas.width / 2, 60 + index * 16);
-				});
+				if (top10.length === 0) {
+					ctx.fillText('Calculating rank...', canvas.width / 2, 60);
+				} else {
+					top10.forEach((entry, index) => {
+						ctx.fillText((index + 1) + '. ' + entry.name + ' - ' + entry.score, canvas.width / 2, 60 + index * 16);
+					});
+				}
 				// -- Play Button -- //
 				ctx.fillStyle = 'green';
 				ctx.fillRect(backButton.x, backButton.y, backButton.width, backButton.height);
