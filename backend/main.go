@@ -65,6 +65,13 @@ func main() {
             return
         }
 
+        var submission ScoreSubmission
+        err := json.NewDecoder(r.Body).Decode(&submission)
+        if err != nil {
+            http.Error(w, "Invalid request body", 400)
+            return
+        }
+
         // --- Validation ---
         submission.Name = strings.TrimSpace(submission.Name) // Remove leading/trailing whitespace
         if submission.Name == "" {
@@ -84,13 +91,6 @@ func main() {
             return
         }
         // --- End validation ---
-
-        var submission ScoreSubmission
-        err := json.NewDecoder(r.Body).Decode(&submission)
-        if err != nil {
-            http.Error(w, "Invalid request body", 400)
-            return
-        }
 
         _, err = conn.Exec(context.Background(),
             "INSERT INTO scores (player_name, score) VALUES ($1, $2)", submission.Name, submission.Score)

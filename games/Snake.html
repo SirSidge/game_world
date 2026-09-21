@@ -165,7 +165,6 @@
 			.catch(error => console.error('Fetch failed:', error));
 	}
 	
-	// --- Create food ---
 	function spawnFood() {
 		let emptySpaces = [];
 		for (let i = 0; i < canvas.width; i+=20) {
@@ -191,7 +190,6 @@
 		}
 	}
 
-    // --- Draw function: renders the current game state onto the canvas ---
     function draw() {
 		switch (gameState) {
 			case 'menu':
